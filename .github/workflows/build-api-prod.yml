@@ -1,0 +1,47 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  DOCKER_IMAGE_NAME: "ethanv/spring-restapi"
+  PROJECT_API_PROD: ${{ secrets.PROJECT_API_PROD }}
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: ./restapi
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the Docker image
+      run: |
+        make docker-build-app
+    
+    - name: Setup SSH - Init Private key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }} 
+        known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+    - name: Setup SSH - Adding Known Hosts
+      run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy - Copy run scripts
+      run: |
+        rsync -avz ./Makefile ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:$PROJECT_API_PROD
+      
+    - name: Deploy - Upload docker image to remote server
+      run: |
+        docker save $DOCKER_IMAGE_NAME | gzip | DOCKER_HOST=ssh://${{ secrets.SSH_USER}}@${{ secrets.SSH_HOST}} docker load
+      
+    - name: Deploy - Restart Docker Container
+      run: |
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd $PROJECT_API_PROD && make docker-restart-app"
