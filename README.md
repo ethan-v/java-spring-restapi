@@ -21,4 +21,5 @@ http://localhost:8080/hello
 - https://start.spring.io/
 - https://spring.io/quickstart
 - https://spring.io/guides/gs/rest-service/
+- https://spring.io/guides/tutorials/react-and-spring-data-rest/
 
